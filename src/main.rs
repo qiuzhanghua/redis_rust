@@ -1,6 +1,10 @@
 use r2d2_redis::redis::{geo, Commands, ConnectionLike};
 use r2d2_redis::{r2d2, RedisConnectionManager};
 use std::f64;
+use crossbeam::channel::unbounded;
+use crossbeam::channel::Receiver;
+use crossbeam::channel::Sender;
+
 
 fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     dotenv::dotenv().ok();
@@ -10,7 +14,7 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let mut conn = pool.get()?;
     conn.is_open();
 
-    let s = conn.set_multiple::<&str, i32, bool>(&[("my_key", 99),("my_key2", 99)])?;
+    let s = conn.set_multiple::<&str, i32, bool>(&[("my_key", 99), ("my_key2", 111)])?;
     println!("{:?}", s);
     // let s = conn.set::<&str, i32, String>("my_key", 32)?;
     // println!("{:?}", s);  // s == "OK"
@@ -48,5 +52,32 @@ fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         );
     }
 
+    let (s, r) = unbounded();
+    s.send("Hello, world!");
+
+    assert_eq!(r.recv(), Ok("Hello, world!"));
+
+    let d = ChannelDrop::R(r);
+
+    let (sender_command, receiver_command) = unbounded();
+    sender_command.send(d);
+
+    let command = receiver_command.recv().unwrap();
+    match command {
+        ChannelDrop::R(r) => {
+            drop(r);
+        }
+        ChannelDrop::S(s) => {
+            drop(s)
+        }
+    }
+
     Ok(())
 }
+
+#[derive(Debug)]
+pub enum ChannelDrop<T> {
+    R(Receiver<T>),
+    S(Sender<T>),
+}
+

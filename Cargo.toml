@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 r2d2_redis = "0.13"
 dotenv = "0.15"
+crossbeam = "0.7"
